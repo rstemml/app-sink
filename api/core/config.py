@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     # Security
     api_key_length: int = 64
 
+    # Docker Registry (for Buildpacks)
+    docker_registry_url: str = "localhost:5000"
+
     class Config:
         env_file = ".env"
         case_sensitive = False

@@ -125,4 +125,19 @@ export class AppSinkClient {
     );
     return response.data;
   }
+
+  // Build and Deploy (Cloud Native Buildpacks)
+  async buildAndDeploy(data: {
+    git_url: string;
+    name: string;
+    branch?: string;
+    domain?: string;
+    replicas?: number;
+  }) {
+    const response = await this.client.post(
+      '/api/v1/build-and-deploy',
+      data
+    );
+    return response.data;
+  }
 }

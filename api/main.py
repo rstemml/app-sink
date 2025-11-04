@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 import logging
 from contextlib import asynccontextmanager
 
-from routers import apps, analyze, health, auth, keys
+from routers import apps, analyze, health, auth, keys, build
 from core.database import init_db
 from core.config import get_settings
 
@@ -62,6 +62,7 @@ app.add_middleware(
 app.include_router(health.router, prefix="/api/v1", tags=["health"])
 app.include_router(auth.router, prefix="/api/v1", tags=["auth"])
 app.include_router(keys.router, prefix="/api/v1", tags=["keys"])
+app.include_router(build.router, prefix="/api/v1", tags=["build"])
 app.include_router(apps.router, prefix="/api/v1", tags=["apps"])
 app.include_router(analyze.router, prefix="/api/v1", tags=["ai"])
 

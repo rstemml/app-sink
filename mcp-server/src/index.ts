@@ -167,6 +167,36 @@ const TOOLS: Tool[] = [
       required: ['git_url'],
     },
   },
+  {
+    name: 'app_sink_build_and_deploy',
+    description: 'Build from Git repository (WITHOUT Dockerfile!) and deploy to Kubernetes. Uses Cloud Native Buildpacks to auto-detect language and build the image.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        git_url: {
+          type: 'string',
+          description: 'Git repository URL to build and deploy',
+        },
+        name: {
+          type: 'string',
+          description: 'Name for the deployment (lowercase, alphanumeric, hyphens)',
+        },
+        branch: {
+          type: 'string',
+          description: 'Git branch to build (default: main)',
+        },
+        domain: {
+          type: 'string',
+          description: 'Custom domain for the deployment',
+        },
+        replicas: {
+          type: 'number',
+          description: 'Number of replicas (default: 1)',
+        },
+      },
+      required: ['git_url', 'name'],
+    },
+  },
 ];
 
 // Create MCP Server
@@ -324,6 +354,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             {
               type: 'text',
               text: `Repository Analysis:\n\n${JSON.stringify(analysis, null, 2)}`,
+            },
+          ],
+        };
+      }
+
+      case 'app_sink_build_and_deploy': {
+        const { git_url, name, branch, domain, replicas } = args as any;
+        const result = await apiClient.buildAndDeploy({
+          git_url,
+          name,
+          branch: branch || 'main',
+          domain,
+          replicas: replicas || 1,
+        });
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `🚀 Build and deploy started!\n\n${JSON.stringify(result, null, 2)}\n\n✨ No Dockerfile needed - using Cloud Native Buildpacks!\n\nThe build is running in the background. Use app_sink_get_status to check progress.`,
             },
           ],
         };
