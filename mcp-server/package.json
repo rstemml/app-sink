@@ -1,0 +1,28 @@
+{
+  "name": "@app-sink/mcp-server",
+  "version": "1.0.0",
+  "description": "MCP Server for App-Sink - Deploy to Kubernetes with natural language",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "app-sink-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "keywords": ["mcp", "kubernetes", "k8s", "deployment", "ai"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.21.0",
+    "axios": "^1.13.2",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

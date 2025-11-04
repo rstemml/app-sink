@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "app-sink": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/app-sink/mcp-server/dist/index.js"
+      ],
+      "env": {
+        "APP_SINK_API_KEY": "ask_your_api_key_here",
+        "APP_SINK_API_URL": "http://localhost:8000"
+      }
+    }
+  }
+}
