@@ -1,0 +1,83 @@
+name: Deploy to App-Sink
+
+on:
+  push:
+    branches:
+      - main
+      - production
+
+env:
+  APP_NAME: my-app
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix={{branch}}-
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to App-Sink
+        run: |
+          # Extract first tag (most specific)
+          IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n 1)
+
+          curl -X POST ${{ secrets.APP_SINK_URL }}/api/v1/apps \
+            -H "Authorization: Bearer ${{ secrets.APP_SINK_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"name\": \"${{ env.APP_NAME }}\",
+              \"image\": \"${IMAGE_TAG}\",
+              \"port\": 3000,
+              \"domain\": \"${{ env.APP_NAME }}.example.com\",
+              \"replicas\": 2,
+              \"env\": {
+                \"NODE_ENV\": \"production\",
+                \"DATABASE_URL\": \"${{ secrets.DATABASE_URL }}\"
+              }
+            }"
+
+      - name: Wait for deployment
+        run: |
+          echo "Waiting for deployment to be ready..."
+          sleep 30
+
+          # Check deployment status
+          curl -s ${{ secrets.APP_SINK_URL }}/api/v1/apps/${{ env.APP_NAME }} \
+            -H "Authorization: Bearer ${{ secrets.APP_SINK_API_KEY }}"
+
+      - name: Smoke test
+        run: |
+          curl -f https://${{ env.APP_NAME }}.example.com/health || exit 1

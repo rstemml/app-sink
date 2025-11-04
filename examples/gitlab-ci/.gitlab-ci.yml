@@ -1,0 +1,55 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  APP_NAME: my-app
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+
+build:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t $IMAGE_TAG .
+    - docker push $IMAGE_TAG
+  only:
+    - main
+    - production
+
+deploy:
+  stage: deploy
+  image: curlimages/curl:latest
+  script:
+    - |
+      curl -X POST $APP_SINK_URL/api/v1/apps \
+        -H "Authorization: Bearer $APP_SINK_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d "{
+          \"name\": \"$APP_NAME\",
+          \"image\": \"$IMAGE_TAG\",
+          \"port\": 3000,
+          \"domain\": \"$APP_NAME.example.com\",
+          \"replicas\": 2,
+          \"env\": {
+            \"NODE_ENV\": \"production\",
+            \"DATABASE_URL\": \"$DATABASE_URL\"
+          }
+        }"
+  only:
+    - main
+
+deploy-with-cli:
+  stage: deploy
+  image: python:3.11-slim
+  before_script:
+    - pip install app-sink-cli
+    - app-sink config set endpoint $APP_SINK_URL
+    - app-sink config set api-key $APP_SINK_API_KEY
+  script:
+    - app-sink deploy --image $IMAGE_TAG --domain $APP_NAME.example.com --replicas 2
+  only:
+    - production

@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ app_name }}
+  namespace: {{ namespace }}
+  labels:
+    app: {{ app_name }}
+    managed-by: app-sink
+spec:
+  replicas: {{ replicas }}
+  selector:
+    matchLabels:
+      app: {{ app_name }}
+  template:
+    metadata:
+      labels:
+        app: {{ app_name }}
+    spec:
+      containers:
+      - name: {{ app_name }}
+        image: {{ image }}
+        ports:
+        - containerPort: {{ port }}
+          name: http
+        env:
+        {% for key, value in env_vars.items() %}
+        - name: {{ key }}
+          value: "{{ value }}"
+        {% endfor %}
+        resources:
+          requests:
+            cpu: {{ resources.cpu }}
+            memory: {{ resources.memory }}
+          limits:
+            cpu: {{ resources.cpu }}
+            memory: {{ resources.memory }}
+        livenessProbe:
+          httpGet:
+            path: {{ healthcheck.path }}
+            port: {{ port }}
+          initialDelaySeconds: {{ healthcheck.initial_delay }}
+          periodSeconds: {{ healthcheck.interval }}
+          timeoutSeconds: {{ healthcheck.timeout }}
+        readinessProbe:
+          httpGet:
+            path: {{ healthcheck.path }}
+            port: {{ port }}
+          initialDelaySeconds: 5
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ app_name }}
+  namespace: {{ namespace }}
+  labels:
+    app: {{ app_name }}
+    managed-by: app-sink
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: {{ port }}
+    protocol: TCP
+    name: http
+  selector:
+    app: {{ app_name }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ app_name }}
+  namespace: {{ namespace }}
+  labels:
+    app: {{ app_name }}
+    managed-by: app-sink
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - {{ domain }}
+    secretName: {{ app_name }}-tls
+  rules:
+  - host: {{ domain }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ app_name }}
+            port:
+              number: 80

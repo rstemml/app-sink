@@ -1,0 +1,59 @@
+name: Deploy with App-Sink CLI
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  APP_NAME: my-app
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Install App-Sink CLI
+        run: |
+          pip install app-sink-cli
+
+      - name: Configure App-Sink CLI
+        run: |
+          app-sink config set endpoint ${{ secrets.APP_SINK_URL }}
+          app-sink config set api-key ${{ secrets.APP_SINK_API_KEY }}
+
+      - name: Deploy with CLI
+        run: |
+          app-sink deploy \
+            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --domain ${{ env.APP_NAME }}.example.com \
+            --replicas 2 \
+            --env NODE_ENV=production \
+            --env DATABASE_URL=${{ secrets.DATABASE_URL }}
+
+      - name: Check deployment status
+        run: |
+          app-sink get ${{ env.APP_NAME }}
+          app-sink logs ${{ env.APP_NAME }} --tail 50
